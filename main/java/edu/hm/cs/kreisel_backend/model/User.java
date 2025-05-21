@@ -5,7 +5,6 @@ import jakarta.validation.constraints.Email;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -21,6 +20,9 @@ public class User {
     @Email(regexp = "^[a-zA-Z0-9._%+-]+@hm\\.edu$", message = "Nur hm.edu Emails erlaubt")
     @Column(unique = true, nullable = false)
     private String email;
+
+    @Column(nullable = false)
+    private String password;  // neu
 
     @Enumerated(EnumType.STRING)
     private Role role;

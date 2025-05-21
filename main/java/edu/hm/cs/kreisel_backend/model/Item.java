@@ -70,4 +70,5 @@ public class Item {
     public enum Location {
         Lothstraße, Pasing, Karlstraße
     }
+
 }

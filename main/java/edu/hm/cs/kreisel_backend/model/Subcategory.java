@@ -1,12 +1,9 @@
 package edu.hm.cs.kreisel_backend.model;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.Email;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDate;
-import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -20,4 +17,8 @@ public class Subcategory {
 
     @Column(nullable = false, unique = true)
     private String name;
+
+    @ManyToOne(optional = false) // Jede Subcategory braucht genau eine Category
+    @JoinColumn(name = "category_id", nullable = false) // Foreign Key Spalte
+    private Category category;
 }

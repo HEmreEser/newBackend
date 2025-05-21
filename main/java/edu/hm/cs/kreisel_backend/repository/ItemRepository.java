@@ -1,10 +1,12 @@
 package edu.hm.cs.kreisel_backend.repository;
 
-import edu.hm.cs.kreisel_backend.model.*;
+import edu.hm.cs.kreisel_backend.model.Item;
+import edu.hm.cs.kreisel_backend.model.Item.Location;
 import org.springframework.data.jpa.repository.JpaRepository;
+
 import java.util.List;
 import java.util.UUID;
 
 public interface ItemRepository extends JpaRepository<Item, UUID> {
-    List<Item> findByLocation(Item.Location location);
+    List<Item> findByLocation(Location location);
 }

@@ -1,24 +1,14 @@
-// AuthService.java
 package edu.hm.cs.kreisel_backend.service;
 
 import edu.hm.cs.kreisel_backend.dto.AuthRequestDto;
-import edu.hm.cs.kreisel_backend.dto.AuthResponseDto;
 import edu.hm.cs.kreisel_backend.model.User;
 import edu.hm.cs.kreisel_backend.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.regex.Pattern;
 
 @Service
@@ -30,31 +20,31 @@ public class AuthService implements UserDetailsService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    // Email validation pattern for HM emails
     private static final Pattern HM_EMAIL_PATTERN = Pattern.compile("^[a-zA-Z0-9._%+-]+@hm\\.edu$");
 
     public User registerUser(AuthRequestDto registerRequest) {
-        // Validate HM email format
         if (!isValidHmEmail(registerRequest.getEmail())) {
-            throw new IllegalArgumentException("Only HM email addresses are allowed");
+            throw new IllegalArgumentException("Nur HM-E-Mail-Adressen sind erlaubt");
         }
 
-        // Check if user already exists
+        if (registerRequest.getPassword() == null || registerRequest.getPassword().length() < 6) {
+            throw new IllegalArgumentException("Passwort muss mindestens 6 Zeichen lang sein");
+        }
+
         if (userRepository.findByEmail(registerRequest.getEmail()) != null) {
-            throw new IllegalArgumentException("User with this email already exists");
+            throw new IllegalArgumentException("Benutzer mit dieser E-Mail existiert bereits");
         }
 
-        // Create new user
         User user = new User();
         user.setEmail(registerRequest.getEmail());
-        // Set role based on email (admin or user)
+        user.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
+
         if (registerRequest.getEmail().startsWith("admin")) {
             user.setRole(User.Role.ADMIN);
         } else {
             user.setRole(User.Role.USER);
         }
 
-        // Save user to database
         return userRepository.save(user);
     }
 
@@ -63,20 +53,19 @@ public class AuthService implements UserDetailsService {
     }
 
     @Override
-    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+    public org.springframework.security.core.userdetails.User loadUserByUsername(String email) throws UsernameNotFoundException {
         User user = userRepository.findByEmail(email);
         if (user == null) {
-            throw new UsernameNotFoundException("User not found with email: " + email);
+            throw new UsernameNotFoundException("Benutzer nicht gefunden mit E-Mail: " + email);
         }
-
-        List<GrantedAuthority> authorities = new ArrayList<>();
-        authorities.add(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
-
-        // In a real application, you'd have password handling here
         return new org.springframework.security.core.userdetails.User(
                 user.getEmail(),
-                "password", // Replace with actual password handling
-                authorities
+                user.getPassword(),
+                java.util.Collections.emptyList()
         );
+    }
+
+    public boolean checkPassword(String rawPassword, String encodedPassword) {
+        return passwordEncoder.matches(rawPassword, encodedPassword);
     }
 }

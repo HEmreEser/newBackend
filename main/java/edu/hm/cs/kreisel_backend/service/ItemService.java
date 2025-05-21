@@ -1,4 +1,3 @@
-// ItemService.java
 package edu.hm.cs.kreisel_backend.service;
 
 import edu.hm.cs.kreisel_backend.dto.CreateItemDto;
@@ -13,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -59,16 +59,13 @@ public class ItemService {
         item.setStatus(createItemDto.status);
         item.setLocation(createItemDto.location);
 
-        // Set category and subcategory
         if (createItemDto.categoryId != null) {
-            Category category = categoryRepository.findById(createItemDto.categoryId)
-                    .orElseThrow(() -> new RuntimeException("Category not found"));
+            Category category = categoryRepository.findById(createItemDto.categoryId).orElse(null);
             item.setCategory(category);
         }
 
         if (createItemDto.subcategoryId != null) {
-            Subcategory subcategory = subcategoryRepository.findById(createItemDto.subcategoryId)
-                    .orElseThrow(() -> new RuntimeException("Subcategory not found"));
+            Subcategory subcategory = subcategoryRepository.findById(createItemDto.subcategoryId).orElse(null);
             item.setSubcategory(subcategory);
         }
 
@@ -76,43 +73,106 @@ public class ItemService {
         return convertToDto(savedItem);
     }
 
-    public ItemDto updateItem(UUID id, CreateItemDto updateItemDto) {
+    public ItemDto updateItem(UUID id, CreateItemDto updateDto) {
         Item item = itemRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Item not found"));
+                .orElseThrow(() -> new RuntimeException("Item nicht gefunden"));
 
-        item.setName(updateItemDto.name);
-        item.setDescription(updateItemDto.description);
-        item.setBrand(updateItemDto.brand);
-        item.setAvailableFrom(updateItemDto.availableFrom);
-        item.setImageUrl(updateItemDto.imageUrl);
-        item.setSize(updateItemDto.size);
-        item.setGender(updateItemDto.gender);
-        item.setCondition(updateItemDto.condition);
-        item.setStatus(updateItemDto.status);
-        item.setLocation(updateItemDto.location);
+        item.setName(updateDto.name);
+        item.setDescription(updateDto.description);
+        item.setBrand(updateDto.brand);
+        item.setAvailableFrom(updateDto.availableFrom);
+        item.setImageUrl(updateDto.imageUrl);
+        item.setSize(updateDto.size);
+        item.setGender(updateDto.gender);
+        item.setCondition(updateDto.condition);
+        item.setStatus(updateDto.status);
+        item.setLocation(updateDto.location);
 
-        // Update category and subcategory
-        if (updateItemDto.categoryId != null) {
-            Category category = categoryRepository.findById(updateItemDto.categoryId)
-                    .orElseThrow(() -> new RuntimeException("Category not found"));
+        if (updateDto.categoryId != null) {
+            Category category = categoryRepository.findById(updateDto.categoryId).orElse(null);
             item.setCategory(category);
+        } else {
+            item.setCategory(null);
         }
 
-        if (updateItemDto.subcategoryId != null) {
-            Subcategory subcategory = subcategoryRepository.findById(updateItemDto.subcategoryId)
-                    .orElseThrow(() -> new RuntimeException("Subcategory not found"));
+        if (updateDto.subcategoryId != null) {
+            Subcategory subcategory = subcategoryRepository.findById(updateDto.subcategoryId).orElse(null);
             item.setSubcategory(subcategory);
+        } else {
+            item.setSubcategory(null);
         }
 
-        Item updatedItem = itemRepository.save(item);
-        return convertToDto(updatedItem);
+        Item savedItem = itemRepository.save(item);
+        return convertToDto(savedItem);
     }
 
     public void deleteItem(UUID id) {
-        if (!itemRepository.existsById(id)) {
-            throw new RuntimeException("Item not found");
+        if (itemRepository.existsById(id)) {
+            itemRepository.deleteById(id);
         }
-        itemRepository.deleteById(id);
+    }
+
+    public List<ItemDto> searchItems(
+            Optional<String> searchTerm,
+            Optional<Item.Gender> gender,
+            Optional<UUID> categoryId,
+            Optional<UUID> subcategoryId,
+            Optional<String> size,
+            Optional<Item.Status> status
+    ) {
+        List<Item> items = itemRepository.findAll();
+
+        return items.stream()
+                .filter(item -> {
+                    if (searchTerm.isPresent()) {
+                        String term = searchTerm.get().toLowerCase();
+                        boolean matches = (item.getName() != null && item.getName().toLowerCase().contains(term))
+                                || (item.getDescription() != null && item.getDescription().toLowerCase().contains(term))
+                                || (item.getBrand() != null && item.getBrand().toLowerCase().contains(term));
+                        if (!matches) return false;
+                    }
+
+                    if (gender.isPresent() && item.getGender() != gender.get()) {
+                        return false;
+                    }
+
+                    if (categoryId.isPresent()) {
+                        if (item.getCategory() == null || !item.getCategory().getId().equals(categoryId.get())) {
+                            return false;
+                        }
+                    }
+
+                    if (subcategoryId.isPresent()) {
+                        if (item.getSubcategory() == null || !item.getSubcategory().getId().equals(subcategoryId.get())) {
+                            return false;
+                        }
+                        if (categoryId.isPresent()) {
+                            UUID catId = categoryId.get();
+                            if (item.getSubcategory().getCategory() == null || !item.getSubcategory().getCategory().getId().equals(catId)) {
+                                return false;
+                            }
+                        }
+                    }
+
+                    if (size.isPresent()) {
+                        try {
+                            Item.Size filterSize = Item.Size.valueOf(size.get().toUpperCase());
+                            if (item.getSize() != filterSize) {
+                                return false;
+                            }
+                        } catch (IllegalArgumentException e) {
+                            return false;
+                        }
+                    }
+
+                    if (status.isPresent() && item.getStatus() != status.get()) {
+                        return false;
+                    }
+
+                    return true;
+                })
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
     }
 
     private ItemDto convertToDto(Item item) {
