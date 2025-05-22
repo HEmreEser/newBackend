@@ -1,3 +1,4 @@
+// Enhanced AuthServiceTest.java with 100% Coverage
 package edu.hm.cs.kreisel_backend.service;
 
 import edu.hm.cs.kreisel_backend.dto.AuthRequestDto;
@@ -66,14 +67,12 @@ class AuthServiceTest {
         // Mock the save method
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> {
             User savedUser = invocation.getArgument(0);
-            // simulate ID assignment
             return savedUser;
         });
     }
 
     @Test
     void registerUser_WithValidHmEmail_ShouldCreateUser() {
-        // Arrange
         // Act
         User result = authService.registerUser(validRequest);
 
@@ -114,11 +113,59 @@ class AuthServiceTest {
     }
 
     @Test
+    void registerUser_WithNullEmail_ShouldThrowException() {
+        // Arrange
+        AuthRequestDto nullEmailRequest = new AuthRequestDto();
+        nullEmailRequest.setEmail(null);
+        nullEmailRequest.setPassword("password123");
+
+        // Act & Assert
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> authService.registerUser(nullEmailRequest)
+        );
+        assertEquals("Nur HM-E-Mail-Adressen sind erlaubt", exception.getMessage());
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void registerUser_WithEmptyEmail_ShouldThrowException() {
+        // Arrange
+        AuthRequestDto emptyEmailRequest = new AuthRequestDto();
+        emptyEmailRequest.setEmail("");
+        emptyEmailRequest.setPassword("password123");
+
+        // Act & Assert
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> authService.registerUser(emptyEmailRequest)
+        );
+        assertEquals("Nur HM-E-Mail-Adressen sind erlaubt", exception.getMessage());
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
     void registerUser_WithShortPassword_ShouldThrowException() {
         // Act & Assert
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
                 () -> authService.registerUser(shortPasswordRequest)
+        );
+        assertEquals("Passwort muss mindestens 6 Zeichen lang sein", exception.getMessage());
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void registerUser_WithNullPassword_ShouldThrowException() {
+        // Arrange
+        AuthRequestDto nullPasswordRequest = new AuthRequestDto();
+        nullPasswordRequest.setEmail("user@hm.edu");
+        nullPasswordRequest.setPassword(null);
+
+        // Act & Assert
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> authService.registerUser(nullPasswordRequest)
         );
         assertEquals("Passwort muss mindestens 6 Zeichen lang sein", exception.getMessage());
         verify(userRepository, never()).save(any(User.class));

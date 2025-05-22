@@ -1,4 +1,3 @@
-
 package edu.hm.cs.kreisel_backend;
 
 import org.springframework.boot.SpringApplication;
@@ -10,5 +9,4 @@ public class KreiselBackendApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(KreiselBackendApplication.class, args);
 	}
-
 }

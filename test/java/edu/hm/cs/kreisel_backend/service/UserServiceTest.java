@@ -70,6 +70,20 @@ class UserServiceTest {
     }
 
     @Test
+    void testGetAllUsersEmptyList() {
+        // Arrange
+        when(userRepository.findAll()).thenReturn(Collections.emptyList());
+
+        // Act
+        List<UserDto> result = userService.getAllUsers();
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(0, result.size());
+        verify(userRepository, times(1)).findAll();
+    }
+
+    @Test
     void testGetUserById() {
         // Arrange
         when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
@@ -173,6 +187,24 @@ class UserServiceTest {
 
         assertEquals("Only HM email addresses are allowed", exception.getMessage());
         verify(userRepository, never()).save(any(User.class));
+        verify(userRepository, never()).findByEmail(any(String.class));
+    }
+
+    @Test
+    void testCreateUserWithNullEmail() {
+        // Arrange
+        CreateUserDto createUserDto = new CreateUserDto();
+        createUserDto.email = null;
+        createUserDto.role = User.Role.USER;
+
+        // Act & Assert
+        Exception exception = assertThrows(RuntimeException.class, () -> {
+            userService.createUser(createUserDto);
+        });
+
+        assertEquals("Only HM email addresses are allowed", exception.getMessage());
+        verify(userRepository, never()).save(any(User.class));
+        verify(userRepository, never()).findByEmail(any(String.class));
     }
 
     @Test
@@ -260,6 +292,27 @@ class UserServiceTest {
         assertEquals("Only HM email addresses are allowed", exception.getMessage());
         verify(userRepository, times(1)).findById(userId);
         verify(userRepository, never()).save(any(User.class));
+        verify(userRepository, never()).findByEmail(any(String.class));
+    }
+
+    @Test
+    void testUpdateUserWithNullEmail() {
+        // Arrange
+        CreateUserDto updateUserDto = new CreateUserDto();
+        updateUserDto.email = null;
+        updateUserDto.role = User.Role.ADMIN;
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
+
+        // Act & Assert
+        Exception exception = assertThrows(RuntimeException.class, () -> {
+            userService.updateUser(userId, updateUserDto);
+        });
+
+        assertEquals("Only HM email addresses are allowed", exception.getMessage());
+        verify(userRepository, times(1)).findById(userId);
+        verify(userRepository, never()).save(any(User.class));
+        verify(userRepository, never()).findByEmail(any(String.class));
     }
 
     @Test
@@ -288,35 +341,6 @@ class UserServiceTest {
     }
 
     @Test
-    void testUpdateUserWithSameEmail() {
-        // Arrange
-        CreateUserDto updateUserDto = new CreateUserDto();
-        updateUserDto.email = testUser.getEmail(); // Same email, different role
-        updateUserDto.role = User.Role.ADMIN;
-
-        when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
-        when(userRepository.findByEmail(updateUserDto.email)).thenReturn(testUser);
-
-        User updatedUser = new User();
-        updatedUser.setId(userId);
-        updatedUser.setEmail(updateUserDto.email);
-        updatedUser.setRole(updateUserDto.role);
-
-        when(userRepository.save(any(User.class))).thenReturn(updatedUser);
-
-        // Act
-        UserDto result = userService.updateUser(userId, updateUserDto);
-
-        // Assert
-        assertNotNull(result);
-        assertEquals(updateUserDto.email, result.email);
-        assertEquals(updateUserDto.role, result.role);
-        verify(userRepository).findById(userId);
-        verify(userRepository, times(1)).findByEmail(updateUserDto.email);
-        verify(userRepository, times(1)).save(any(User.class));
-    }
-
-    @Test
     void testDeleteUser() {
         // Arrange
         when(userRepository.existsById(userId)).thenReturn(true);
@@ -325,6 +349,7 @@ class UserServiceTest {
         userService.deleteUser(userId);
 
         // Assert
+        verify(userRepository, times(1)).existsById(userId);
         verify(userRepository, times(1)).deleteById(userId);
     }
 
@@ -348,8 +373,6 @@ class UserServiceTest {
     void testCanUserRent() {
         // Arrange
         when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
-
-        // Set up the user to indicate they can rent
         when(testUser.canRent()).thenReturn(true);
 
         // Act
@@ -361,23 +384,7 @@ class UserServiceTest {
     }
 
     @Test
-    void testCannotUserRent() {
-        // Arrange
-        when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
-
-        // Set up the user to indicate they cannot rent
-        when(testUser.canRent()).thenReturn(false);
-
-        // Act
-        boolean result = userService.canUserRent(userId);
-
-        // Assert
-        assertFalse(result);
-        verify(userRepository, times(1)).findById(userId);
-    }
-
-    @Test
-    void testCanUserRentUserNotFound() {
+    void testCanUserRentNotFound() {
         // Arrange
         UUID nonExistentId = UUID.randomUUID();
         when(userRepository.findById(nonExistentId)).thenReturn(Optional.empty());

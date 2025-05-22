@@ -1,3 +1,4 @@
+
 package edu.hm.cs.kreisel_backend.config;
 
 import edu.hm.cs.kreisel_backend.model.*;
@@ -6,6 +7,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
+import jakarta.annotation.PostConstruct;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
@@ -14,8 +16,7 @@ import java.util.UUID;
 /**
  * DataInitializer für die "Kreisel"-Applikation.
  * Erstellt die initialen Kategorien, Unterkategorien, Benutzer, Items und Rentals.
- * Wird bei der ersten Ausführung ausgeführt und lädt Demodaten.
- */
+*/
 @Component
 public class DataInitializer implements CommandLineRunner {
 
@@ -25,6 +26,8 @@ public class DataInitializer implements CommandLineRunner {
     private final UserRepository userRepository;
     private final RentalRepository rentalRepository;
     private final PasswordEncoder passwordEncoder;
+
+    private boolean initialized = false;
 
     public DataInitializer(
             CategoryRepository categoryRepository,
@@ -43,10 +46,32 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        // Prüfen, ob bereits Daten existieren. Initialisierung nur bei leerer Datenbank.
-        if (categoryRepository.count() > 0 || userRepository.count() > 0) {
+        // Initialisierung nur, wenn sie nicht bereits läuft oder abgeschlossen ist.
+        if (initialized) {
+            System.out.println("DataInitializer: Initialisierung übersprungen, da bereits abgeschlossen.");
             return;
         }
+
+        // Initialisierung starten
+        try {
+            initialiseData();
+            initialized = true;
+        } catch (Exception e) {
+            System.err.println("DataInitializer: Fehler während der Initialisierung: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    @PostConstruct
+    private void verifyInitialization() {
+        if (categoryRepository.count() > 0 || userRepository.count() > 0) {
+            initialized = true;
+            System.out.println("DataInitializer: Initialisierung bereits abgeschlossen (Datenbank enthält Daten).");
+        }
+    }
+
+    private void initialiseData() {
+        System.out.println("DataInitializer: Initialisiere Kategorien, Benutzer, Items und Rentals...");
 
         // Kategorien und Unterkategorien anlegen
         Map<String, Category> categories = new HashMap<>();
@@ -88,6 +113,8 @@ public class DataInitializer implements CommandLineRunner {
         createRental(standardUser, winterjacke, LocalDate.now().minusDays(2), LocalDate.now().plusDays(3));
         createRental(standardUser, laufschuhe, LocalDate.now().minusDays(5), LocalDate.now().plusDays(1));
         createRental(standardUser, stiefel, LocalDate.now().minusDays(7), LocalDate.now().plusDays(2));
+
+        System.out.println("DataInitializer: Initialisierung erfolgreich abgeschlossen.");
     }
 
     // Hilfsmethoden zur Erstellung von Entitäten für die Datenbank
@@ -132,7 +159,7 @@ public class DataInitializer implements CommandLineRunner {
         return itemRepository.save(item);
     }
 
-    private void createRental(User user, Item item, LocalDate startDate, LocalDate endDate) {
+    private Rental createRental(User user, Item item, LocalDate startDate, LocalDate endDate) {
         Rental rental = new Rental();
         rental.setId(UUID.randomUUID());
         rental.setUser(user);
@@ -140,6 +167,6 @@ public class DataInitializer implements CommandLineRunner {
         rental.setStartDate(startDate);
         rental.setEndDate(endDate);
         rental.setReturned(false);
-        rentalRepository.save(rental);
+        return rentalRepository.save(rental);
     }
 }

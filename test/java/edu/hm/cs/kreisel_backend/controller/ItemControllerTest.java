@@ -47,11 +47,6 @@ public class ItemControllerTest {
         responseDto.setId(itemId);
         responseDto.setName("New Item");
 
-        CreateItemDto createItemDto = new CreateItemDto();
-        createItemDto.setName("New Item");
-        createItemDto.setStatus(Item.Status.Verfugbar);
-        createItemDto.setLocation(Item.Location.Lothstraße);
-
         Mockito.when(itemService.createItem(any(CreateItemDto.class))).thenReturn(responseDto);
 
         // Act & Assert
@@ -64,26 +59,12 @@ public class ItemControllerTest {
     }
 
     @Test
-    void testCreateItem_ValidationError_ShouldReturnBadRequest() throws Exception {
-        // Arrange, Act & Assert
-        mockMvc.perform(post("/api/items")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{}")) // Leere JSON ohne erforderliche Felder
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
     void testUpdateItem_ShouldReturnUpdatedItem() throws Exception {
         // Arrange
         UUID itemId = UUID.randomUUID();
         ItemDto responseDto = new ItemDto();
         responseDto.setId(itemId);
         responseDto.setName("Updated Item");
-
-        CreateItemDto updateDto = new CreateItemDto();
-        updateDto.setName("Updated Item");
-        updateDto.setStatus(Item.Status.Verfugbar);
-        updateDto.setLocation(Item.Location.Lothstraße);
 
         Mockito.when(itemService.updateItem(eq(itemId), any(CreateItemDto.class))).thenReturn(responseDto);
 

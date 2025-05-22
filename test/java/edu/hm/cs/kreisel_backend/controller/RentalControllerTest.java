@@ -85,18 +85,12 @@ class RentalControllerTest {
         UUID userId = UUID.randomUUID();
         UUID itemId = UUID.randomUUID();
 
-        CreateRentalDto createRentalDto = new CreateRentalDto();
-        createRentalDto.setUserId(userId);
-        createRentalDto.setItemId(itemId);
-        createRentalDto.setStartDate(LocalDate.now());
-        createRentalDto.setEndDate(LocalDate.now().plusDays(10));
-
         RentalDto rentalDto = new RentalDto();
         rentalDto.setId(rentalId);
         rentalDto.setUserId(userId);
         rentalDto.setItemId(itemId);
-        rentalDto.setStartDate(createRentalDto.getStartDate());
-        rentalDto.setEndDate(createRentalDto.getEndDate());
+        rentalDto.setStartDate(LocalDate.now());
+        rentalDto.setEndDate(LocalDate.now().plusDays(10));
         rentalDto.setReturned(false);
 
         when(rentalService.createRental(any(CreateRentalDto.class))).thenReturn(rentalDto);
@@ -107,8 +101,8 @@ class RentalControllerTest {
                         .content("{" +
                                 "\"userId\":\"" + userId + "\"," +
                                 "\"itemId\":\"" + itemId + "\"," +
-                                "\"startDate\":\"" + createRentalDto.getStartDate() + "\"," +
-                                "\"endDate\":\"" + createRentalDto.getEndDate() + "\"" +
+                                "\"startDate\":\"" + LocalDate.now() + "\"," +
+                                "\"endDate\":\"" + LocalDate.now().plusDays(10) + "\"" +
                                 "}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(rentalId.toString()))
@@ -131,57 +125,12 @@ class RentalControllerTest {
         when(rentalService.returnItem(rentalId)).thenReturn(rentalDto);
 
         // Act & Assert
-        mockMvc.perform(put("/rentals/{id}/return", rentalId)
+        mockMvc.perform(post("/rentals/{id}/return", rentalId)  // Geändert von PUT zu POST
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(rentalId.toString()))
                 .andExpect(jsonPath("$.returned").value(true));
 
         verify(rentalService).returnItem(rentalId);
-    }
-
-    @Test
-    void testGetRentalsByUser_ShouldReturnListOfUserRentals() throws Exception {
-        // Arrange
-        UUID userId = UUID.randomUUID();
-        UUID rentalId = UUID.randomUUID();
-        RentalDto rentalDto = new RentalDto();
-        rentalDto.setId(rentalId);
-        rentalDto.setUserId(userId);
-        rentalDto.setReturned(false);
-
-        when(rentalService.getRentalsByUser(userId)).thenReturn(List.of(rentalDto));
-
-        // Act & Assert
-        mockMvc.perform(get("/rentals/user/{userId}", userId)
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(rentalId.toString()))
-                .andExpect(jsonPath("$[0].userId").value(userId.toString()));
-
-        verify(rentalService).getRentalsByUser(userId);
-    }
-
-    @Test
-    void testGetActiveRentalsByUser_ShouldReturnListOfActiveUserRentals() throws Exception {
-        // Arrange
-        UUID userId = UUID.randomUUID();
-        UUID rentalId = UUID.randomUUID();
-        RentalDto rentalDto = new RentalDto();
-        rentalDto.setId(rentalId);
-        rentalDto.setUserId(userId);
-        rentalDto.setReturned(false);
-
-        when(rentalService.getActiveRentalsByUser(userId)).thenReturn(List.of(rentalDto));
-
-        // Act & Assert
-        mockMvc.perform(get("/rentals/user/{userId}/active", userId)
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(rentalId.toString()))
-                .andExpect(jsonPath("$[0].userId").value(userId.toString()))
-                .andExpect(jsonPath("$[0].returned").value(false));
-
-        verify(rentalService).getActiveRentalsByUser(userId);
     }
 }

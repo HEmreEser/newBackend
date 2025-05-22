@@ -18,7 +18,7 @@ public class AuthService implements UserDetailsService {
     private UserRepository userRepository;
 
     @Autowired
-    private PasswordEncoder passwordEncoder;
+    private PasswordEncoder passwordEncoder; // Wird von Spring aus EncoderConfig injiziert
 
     private static final Pattern HM_EMAIL_PATTERN = Pattern.compile("^[a-zA-Z0-9._%+-]+@hm\\.edu$");
 
@@ -37,7 +37,7 @@ public class AuthService implements UserDetailsService {
 
         User user = new User();
         user.setEmail(registerRequest.getEmail());
-        user.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
+        user.setPassword(passwordEncoder.encode(registerRequest.getPassword())); // PasswordEncoder verwendet
 
         if (registerRequest.getEmail().startsWith("admin")) {
             user.setRole(User.Role.ADMIN);

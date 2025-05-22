@@ -2,7 +2,7 @@ package edu.hm.cs.kreisel_backend.controller;
 
 import edu.hm.cs.kreisel_backend.dto.AuthRequestDto;
 import edu.hm.cs.kreisel_backend.service.AuthService;
-import edu.hm.cs.kreisel_backend.util.JwtUtil;
+import edu.hm.cs.kreisel_backend.Util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

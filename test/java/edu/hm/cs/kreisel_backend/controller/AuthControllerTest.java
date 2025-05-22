@@ -2,7 +2,7 @@ package edu.hm.cs.kreisel_backend.controller;
 
 import edu.hm.cs.kreisel_backend.dto.AuthRequestDto;
 import edu.hm.cs.kreisel_backend.service.AuthService;
-import edu.hm.cs.kreisel_backend.util.JwtUtil;
+import edu.hm.cs.kreisel_backend.Util.JwtUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -92,10 +92,10 @@ class AuthControllerTest {
 
         // Act & Assert
         mockMvc.perform(post("/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"" + email + "\",\"password\":\"" + password + "\"}"))
-                .andExpect(status().isUnauthorized())
-                .andExpect(content().string("Ungültige Zugangsdaten"));
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"" + email + "\",\"password\":\"" + password + "\"}"))
+        .andExpect(status().isUnauthorized()) // ← Korrektur
+        .andExpect(content().string("Ungültige Zugangsdaten"));
 
         verify(authService).loadUserByUsername(email);
         verify(authService, never()).checkPassword(anyString(), anyString());
@@ -105,11 +105,11 @@ class AuthControllerTest {
     @Test
     void register_ValidRequest_ReturnsSuccessMessage() throws Exception {
         // Arrange
-        String email = "test@example.com";
+        String email = "test@hm.edu";
         String password = "password123";
-        AuthRequestDto requestDto = new AuthRequestDto(email, password);
 
-        doReturn(null).when(authService).registerUser(requestDto);
+        // Kein doReturn für void-Methoden - einfach weglassen
+        // AuthService.registerUser gibt einen User zurück, nicht void
 
         // Act & Assert
         mockMvc.perform(post("/auth/register")
@@ -118,7 +118,7 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string("Registrierung erfolgreich"));
 
-        verify(authService).registerUser(requestDto);
+        verify(authService).registerUser(any(AuthRequestDto.class));
     }
 
     @Test
@@ -126,10 +126,9 @@ class AuthControllerTest {
         // Arrange
         String email = "invalidemail";
         String password = "short";
-        AuthRequestDto requestDto = new AuthRequestDto(email, password);
 
         doThrow(new IllegalArgumentException("Ungültige Anfrage"))
-                .when(authService).registerUser(requestDto);
+                .when(authService).registerUser(any(AuthRequestDto.class));
 
         // Act & Assert
         mockMvc.perform(post("/auth/register")
@@ -138,6 +137,6 @@ class AuthControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string("Ungültige Anfrage"));
 
-        verify(authService).registerUser(requestDto);
+        verify(authService).registerUser(any(AuthRequestDto.class));
     }
 }

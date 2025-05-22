@@ -110,6 +110,7 @@ class RentalServiceTest {
         dto.setEndDate(LocalDate.now().plusDays(5));
 
         when(userRepository.findById(userId)).thenReturn(java.util.Optional.of(user));
+        when(rentalRepository.countByUserIdAndReturnedFalse(userId)).thenReturn(0L);
         when(itemRepository.findById(itemId)).thenReturn(java.util.Optional.of(item));
         when(rentalRepository.save(any(Rental.class))).thenReturn(rental);
 
@@ -126,9 +127,136 @@ class RentalServiceTest {
 
         // Verifizierung der Interaktionen
         verify(userRepository, times(1)).findById(userId);
+        verify(rentalRepository, times(1)).countByUserIdAndReturnedFalse(userId);
         verify(itemRepository, times(1)).findById(itemId);
         verify(rentalRepository, times(1)).save(any(Rental.class));
+        verify(itemRepository, times(1)).save(item);
     }
+
+    @Test
+    void testCreateRentalUserNotFound() {
+        // Arrange
+        CreateRentalDto dto = new CreateRentalDto();
+        dto.setUserId(userId);
+        dto.setItemId(itemId);
+        dto.setStartDate(LocalDate.now());
+        dto.setEndDate(LocalDate.now().plusDays(5));
+
+        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+
+        // Act & Assert
+        Exception exception = assertThrows(RuntimeException.class, () -> {
+            rentalService.createRental(dto);
+        });
+
+        assertEquals("User not found", exception.getMessage());
+        verify(userRepository, times(1)).findById(userId);
+        verify(rentalRepository, never()).save(any(Rental.class));
+    }
+
+    @Test
+    void testCreateRentalTooManyActiveRentals() {
+        // Arrange
+        CreateRentalDto dto = new CreateRentalDto();
+        dto.setUserId(userId);
+        dto.setItemId(itemId);
+        dto.setStartDate(LocalDate.now());
+        dto.setEndDate(LocalDate.now().plusDays(5));
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(rentalRepository.countByUserIdAndReturnedFalse(userId)).thenReturn(5L); // Already 5 active rentals
+
+        // Act & Assert
+        Exception exception = assertThrows(RuntimeException.class, () -> {
+            rentalService.createRental(dto);
+        });
+
+        assertEquals("Maximal 5 aktive Ausleihen erlaubt", exception.getMessage());
+        verify(userRepository, times(1)).findById(userId);
+        verify(rentalRepository, times(1)).countByUserIdAndReturnedFalse(userId);
+        verify(itemRepository, never()).findById(any(UUID.class));
+        verify(rentalRepository, never()).save(any(Rental.class));
+    }
+
+    @Test
+    void testCreateRentalItemNotFound() {
+        // Arrange
+        CreateRentalDto dto = new CreateRentalDto();
+        dto.setUserId(userId);
+        dto.setItemId(itemId);
+        dto.setStartDate(LocalDate.now());
+        dto.setEndDate(LocalDate.now().plusDays(5));
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(rentalRepository.countByUserIdAndReturnedFalse(userId)).thenReturn(0L);
+        when(itemRepository.findById(itemId)).thenReturn(Optional.empty());
+
+        // Act & Assert
+        Exception exception = assertThrows(RuntimeException.class, () -> {
+            rentalService.createRental(dto);
+        });
+
+        assertEquals("Item not found", exception.getMessage());
+        verify(userRepository, times(1)).findById(userId);
+        verify(rentalRepository, times(1)).countByUserIdAndReturnedFalse(userId);
+        verify(itemRepository, times(1)).findById(itemId);
+        verify(rentalRepository, never()).save(any(Rental.class));
+    }
+
+    @Test
+    void testCreateRentalItemNotAvailable() {
+        // Arrange
+        Item unavailableItem = new Item();
+        unavailableItem.setId(itemId);
+        unavailableItem.setStatus(Item.Status.NichtVerfugbar); // Item not available
+
+        CreateRentalDto dto = new CreateRentalDto();
+        dto.setUserId(userId);
+        dto.setItemId(itemId);
+        dto.setStartDate(LocalDate.now());
+        dto.setEndDate(LocalDate.now().plusDays(5));
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(rentalRepository.countByUserIdAndReturnedFalse(userId)).thenReturn(0L);
+        when(itemRepository.findById(itemId)).thenReturn(Optional.of(unavailableItem));
+
+        // Act & Assert
+        Exception exception = assertThrows(RuntimeException.class, () -> {
+            rentalService.createRental(dto);
+        });
+
+        assertEquals("Item ist derzeit nicht verfügbar", exception.getMessage());
+        verify(userRepository, times(1)).findById(userId);
+        verify(rentalRepository, times(1)).countByUserIdAndReturnedFalse(userId);
+        verify(itemRepository, times(1)).findById(itemId);
+        verify(rentalRepository, never()).save(any(Rental.class));
+    }
+
+    @Test
+    void testCreateRentalRentalPeriodTooLong() {
+        // Arrange
+        CreateRentalDto dto = new CreateRentalDto();
+        dto.setUserId(userId);
+        dto.setItemId(itemId);
+        dto.setStartDate(LocalDate.now());
+        dto.setEndDate(LocalDate.now().plusDays(121)); // More than 120 days
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(rentalRepository.countByUserIdAndReturnedFalse(userId)).thenReturn(0L);
+        when(itemRepository.findById(itemId)).thenReturn(Optional.of(item));
+
+        // Act & Assert
+        Exception exception = assertThrows(RuntimeException.class, () -> {
+            rentalService.createRental(dto);
+        });
+
+        assertEquals("Leihdauer max. 4 Monate", exception.getMessage());
+        verify(userRepository, times(1)).findById(userId);
+        verify(rentalRepository, times(1)).countByUserIdAndReturnedFalse(userId);
+        verify(itemRepository, times(1)).findById(itemId);
+        verify(rentalRepository, never()).save(any(Rental.class));
+    }
+
     @Test
     void testGetAllRentals() {
         // Arrange
@@ -218,6 +346,40 @@ class RentalServiceTest {
     }
 
     @Test
+    void testReturnItemRentalNotFound() {
+        // Arrange
+        UUID nonExistentRentalId = UUID.randomUUID();
+        when(rentalRepository.findById(nonExistentRentalId)).thenReturn(Optional.empty());
+
+        // Act & Assert
+        Exception exception = assertThrows(RuntimeException.class, () -> {
+            rentalService.returnItem(nonExistentRentalId);
+        });
+
+        assertEquals("Rental nicht gefunden", exception.getMessage());
+        verify(rentalRepository, times(1)).findById(nonExistentRentalId);
+        verify(rentalRepository, never()).save(any(Rental.class));
+        verify(itemRepository, never()).save(any(Item.class));
+    }
+
+    @Test
+    void testReturnItemAlreadyReturned() {
+        // Arrange
+        UUID rentalId = returnedRental.getId();
+        when(rentalRepository.findById(rentalId)).thenReturn(Optional.of(returnedRental));
+
+        // Act & Assert
+        Exception exception = assertThrows(RuntimeException.class, () -> {
+            rentalService.returnItem(rentalId);
+        });
+
+        assertEquals("Item wurde bereits zurückgegeben", exception.getMessage());
+        verify(rentalRepository, times(1)).findById(rentalId);
+        verify(rentalRepository, never()).save(any(Rental.class));
+        verify(itemRepository, never()).save(any(Item.class));
+    }
+
+    @Test
     void testUpdateOverdueRentals() {
         // Arrange
         LocalDate today = LocalDate.now();
@@ -242,5 +404,20 @@ class RentalServiceTest {
         verify(rentalRepository, times(1)).findAllByReturnedFalseAndEndDateBefore(today);
         verify(rentalRepository, times(1)).saveAll(overdueRentals);
         verify(itemRepository, times(1)).saveAll(anyList());
+    }
+
+    @Test
+    void testUpdateOverdueRentalsNoOverdueRentals() {
+        // Arrange
+        LocalDate today = LocalDate.now();
+        when(rentalRepository.findAllByReturnedFalseAndEndDateBefore(today)).thenReturn(Collections.emptyList());
+
+        // Act
+        rentalService.updateOverdueRentals();
+
+        // Assert
+        verify(rentalRepository, times(1)).findAllByReturnedFalseAndEndDateBefore(today);
+        verify(rentalRepository, times(1)).saveAll(Collections.emptyList());
+        verify(itemRepository, times(1)).saveAll(Collections.emptyList());
     }
 }
