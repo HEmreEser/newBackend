@@ -48,24 +48,24 @@ public class ItemService {
 
     public ItemDto createItem(CreateItemDto createItemDto) {
         Item item = new Item();
-        item.setName(createItemDto.name);
-        item.setDescription(createItemDto.description);
-        item.setBrand(createItemDto.brand);
-        item.setAvailableFrom(createItemDto.availableFrom);
-        item.setImageUrl(createItemDto.imageUrl);
-        item.setSize(createItemDto.size);
-        item.setGender(createItemDto.gender);
-        item.setCondition(createItemDto.condition);
-        item.setStatus(createItemDto.status);
-        item.setLocation(createItemDto.location);
+        item.setName(createItemDto.getName());
+        item.setDescription(createItemDto.getDescription());
+        item.setBrand(createItemDto.getBrand());
+        item.setAvailableFrom(createItemDto.getAvailableFrom());
+        item.setImageUrl(createItemDto.getImageUrl());
+        item.setSize(createItemDto.getSize());
+        item.setGender(createItemDto.getGender());
+        item.setCondition(createItemDto.getCondition());
+        item.setStatus(createItemDto.getStatus());
+        item.setLocation(createItemDto.getLocation());
 
-        if (createItemDto.categoryId != null) {
-            Category category = categoryRepository.findById(createItemDto.categoryId).orElse(null);
+        if (createItemDto.getCategoryId() != null) {
+            Category category = categoryRepository.findById(createItemDto.getCategoryId()).orElse(null);
             item.setCategory(category);
         }
 
-        if (createItemDto.subcategoryId != null) {
-            Subcategory subcategory = subcategoryRepository.findById(createItemDto.subcategoryId).orElse(null);
+        if (createItemDto.getSubcategoryId() != null) {
+            Subcategory subcategory = subcategoryRepository.findById(createItemDto.getSubcategoryId()).orElse(null);
             item.setSubcategory(subcategory);
         }
 
@@ -77,26 +77,26 @@ public class ItemService {
         Item item = itemRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Item nicht gefunden"));
 
-        item.setName(updateDto.name);
-        item.setDescription(updateDto.description);
-        item.setBrand(updateDto.brand);
-        item.setAvailableFrom(updateDto.availableFrom);
-        item.setImageUrl(updateDto.imageUrl);
-        item.setSize(updateDto.size);
-        item.setGender(updateDto.gender);
-        item.setCondition(updateDto.condition);
-        item.setStatus(updateDto.status);
-        item.setLocation(updateDto.location);
+        item.setName(updateDto.getName());
+        item.setDescription(updateDto.getDescription());
+        item.setBrand(updateDto.getBrand());
+        item.setAvailableFrom(updateDto.getAvailableFrom());
+        item.setImageUrl(updateDto.getImageUrl());
+        item.setSize(updateDto.getSize());
+        item.setGender(updateDto.getGender());
+        item.setCondition(updateDto.getCondition());
+        item.setStatus(updateDto.getStatus());
+        item.setLocation(updateDto.getLocation());
 
-        if (updateDto.categoryId != null) {
-            Category category = categoryRepository.findById(updateDto.categoryId).orElse(null);
+        if (updateDto.getCategoryId() != null) {
+            Category category = categoryRepository.findById(updateDto.getCategoryId()).orElse(null);
             item.setCategory(category);
         } else {
             item.setCategory(null);
         }
 
-        if (updateDto.subcategoryId != null) {
-            Subcategory subcategory = subcategoryRepository.findById(updateDto.subcategoryId).orElse(null);
+        if (updateDto.getSubcategoryId() != null) {
+            Subcategory subcategory = subcategoryRepository.findById(updateDto.getSubcategoryId()).orElse(null);
             item.setSubcategory(subcategory);
         } else {
             item.setSubcategory(null);
@@ -177,24 +177,24 @@ public class ItemService {
 
     private ItemDto convertToDto(Item item) {
         ItemDto dto = new ItemDto();
-        dto.id = item.getId();
-        dto.name = item.getName();
-        dto.description = item.getDescription();
-        dto.brand = item.getBrand();
-        dto.availableFrom = item.getAvailableFrom();
-        dto.imageUrl = item.getImageUrl();
-        dto.size = item.getSize();
-        dto.gender = item.getGender();
-        dto.condition = item.getCondition();
-        dto.status = item.getStatus();
-        dto.location = item.getLocation();
+        dto.setId(item.getId());
+        dto.setName(item.getName());
+        dto.setDescription(item.getDescription());
+        dto.setBrand(item.getBrand());
+        dto.setAvailableFrom(item.getAvailableFrom());
+        dto.setImageUrl(item.getImageUrl());
+        dto.setSize(item.getSize());
+        dto.setGender(item.getGender());
+        dto.setCondition(item.getCondition());
+        dto.setStatus(item.getStatus());
+        dto.setLocation(item.getLocation());
 
         if (item.getCategory() != null) {
-            dto.categoryId = item.getCategory().getId();
+            dto.setCategoryId(item.getCategory().getId());
         }
 
         if (item.getSubcategory() != null) {
-            dto.subcategoryId = item.getSubcategory().getId();
+            dto.setSubcategoryId(item.getSubcategory().getId());
         }
 
         return dto;

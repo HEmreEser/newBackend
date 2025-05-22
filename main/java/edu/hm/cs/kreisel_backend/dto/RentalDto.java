@@ -1,17 +1,20 @@
 package edu.hm.cs.kreisel_backend.dto;
 
-import edu.hm.cs.kreisel_backend.model.Item.*;
-import edu.hm.cs.kreisel_backend.model.User.Role;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 import java.util.UUID;
 
+@Data
+@NoArgsConstructor
 public class RentalDto {
-    public UUID id;
-    public UUID userId;
-    public UUID itemId;
-    public LocalDate startDate;
-    public LocalDate endDate;
-    public boolean returned;
-    public LocalDate returnedAt;
+
+    private UUID id;
+    private UUID userId;
+    private UUID itemId;
+    private LocalDate startDate;
+    private LocalDate endDate;
+    private boolean returned;
+    private LocalDate returnedAt; // Zeitpunkt der Rückgabe
 }

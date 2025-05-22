@@ -49,32 +49,31 @@ public class RentalService {
     /* ---------- Create & Return ---------- */
 
     public RentalDto createRental(CreateRentalDto dto) {
-
-        /* ── 1 User prüfen ─────────────────────────── */
-        User user = userRepository.findById(dto.userId)
+        /* ── 1. User prüfen ───────────────────────────────────── */
+        User user = userRepository.findById(dto.getUserId())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         long active = rentalRepository.countByUserIdAndReturnedFalse(user.getId());
         if (active >= 5)  // max 5 gleichzeitige Leihen
             throw new RuntimeException("Maximal 5 aktive Ausleihen erlaubt");
 
-        /* ── 2 Item prüfen ─────────────────────────── */
-        Item item = itemRepository.findById(dto.itemId)
+        /* ── 2. Item prüfen ───────────────────────────────────── */
+        Item item = itemRepository.findById(dto.getItemId())
                 .orElseThrow(() -> new RuntimeException("Item not found"));
 
         if (!item.isAvailable())
-            throw new RuntimeException("Item derzeit nicht verfügbar");
+            throw new RuntimeException("Item ist derzeit nicht verfügbar");
 
-        /* ── 3 Zeitraum prüfen (≤ 120 Tage) ────────── */
-        if (ChronoUnit.DAYS.between(dto.startDate, dto.endDate) > 120)
+        /* ── 3. Zeitraum prüfen (≤ 120 Tage) ─────────────────── */
+        if (ChronoUnit.DAYS.between(dto.getStartDate(), dto.getEndDate()) > 120)
             throw new RuntimeException("Leihdauer max. 4 Monate");
 
-        /* ── 4 Rental anlegen + Item sperren ──────── */
+        /* ── 4. Rental anlegen und speichern ─────────────────── */
         Rental rental = new Rental();
         rental.setUser(user);
         rental.setItem(item);
-        rental.setStartDate(dto.startDate);
-        rental.setEndDate(dto.endDate);
+        rental.setStartDate(dto.getStartDate());
+        rental.setEndDate(dto.getEndDate());
         rental.setReturned(false);
 
         item.setStatus(Item.Status.NichtVerfugbar);
@@ -85,10 +84,10 @@ public class RentalService {
 
     public RentalDto returnItem(UUID rentalId) {
         Rental rental = rentalRepository.findById(rentalId)
-                .orElseThrow(() -> new RuntimeException("Rental not found"));
+                .orElseThrow(() -> new RuntimeException("Rental nicht gefunden"));
 
         if (rental.isReturned())
-            throw new RuntimeException("Item already returned");
+            throw new RuntimeException("Item wurde bereits zurückgegeben");
 
         rental.setReturned(true);
         rental.setReturnedAt(LocalDate.now());
@@ -100,32 +99,33 @@ public class RentalService {
         return toDto(rentalRepository.save(rental));
     }
 
-    /* ---------- Automatisches Overdue-Update ---------- */
-
-    /** setzt abgelaufene, nicht zurückgegebene Rentals automatisch zurück */
+    /* ---------- Overdue Rentals ---------- */
     public void updateOverdueRentals() {
-        List<Rental> overdue = rentalRepository
+        List<Rental> overdueRentals = rentalRepository
                 .findAllByReturnedFalseAndEndDateBefore(LocalDate.now());
-        overdue.forEach(r -> {
-            r.setReturned(true);
-            r.setReturnedAt(LocalDate.now());
-            r.getItem().setStatus(Item.Status.Verfugbar);
+
+        overdueRentals.forEach(rental -> {
+            rental.setReturned(true);
+            rental.setReturnedAt(LocalDate.now());
+            rental.getItem().setStatus(Item.Status.Verfugbar);
         });
-        rentalRepository.saveAll(overdue);
-        itemRepository.saveAll(
-                overdue.stream().map(Rental::getItem).collect(Collectors.toSet()));
+
+        rentalRepository.saveAll(overdueRentals);
+        itemRepository.saveAll(overdueRentals
+                .stream().map(Rental::getItem).collect(Collectors.toList()));
     }
 
     /* ---------- Mapper ---------- */
-    private RentalDto toDto(Rental r) {
+
+    private RentalDto toDto(Rental rental) {
         RentalDto dto = new RentalDto();
-        dto.id         = r.getId();
-        dto.userId     = r.getUser().getId();
-        dto.itemId     = r.getItem().getId();
-        dto.startDate  = r.getStartDate();
-        dto.endDate    = r.getEndDate();
-        dto.returned   = r.isReturned();
-        dto.returnedAt = r.getReturnedAt();
+        dto.setId(rental.getId());
+        dto.setUserId(rental.getUser().getId());
+        dto.setItemId(rental.getItem().getId());
+        dto.setStartDate(rental.getStartDate());
+        dto.setEndDate(rental.getEndDate());
+        dto.setReturned(rental.isReturned());
+        dto.setReturnedAt(rental.getReturnedAt());
         return dto;
     }
 }

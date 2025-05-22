@@ -4,6 +4,7 @@ import edu.hm.cs.kreisel_backend.dto.AuthRequestDto;
 import edu.hm.cs.kreisel_backend.service.AuthService;
 import edu.hm.cs.kreisel_backend.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -17,20 +18,24 @@ public class AuthController {
     private JwtUtil jwtUtil;
 
     @PostMapping("/login")
-    public String login(@RequestBody AuthRequestDto request) {
+    public ResponseEntity<String> login(@RequestBody AuthRequestDto request) {
         var userDetails = authService.loadUserByUsername(request.getEmail());
 
         if (userDetails == null || !authService.checkPassword(request.getPassword(), userDetails.getPassword())) {
-            throw new RuntimeException("Ungültige Zugangsdaten");
+            return ResponseEntity.status(401).body("Ungültige Zugangsdaten");
         }
 
-        return jwtUtil.generateToken(userDetails.getUsername());
+        String token = jwtUtil.generateToken(userDetails.getUsername());
+        return ResponseEntity.ok(token);
     }
 
     @PostMapping("/register")
-    public String register(@RequestBody AuthRequestDto request) {
-        authService.registerUser(request);
-        return "Registrierung erfolgreich";
+    public ResponseEntity<String> register(@RequestBody AuthRequestDto request) {
+        try {
+            authService.registerUser(request);
+            return ResponseEntity.ok("Registrierung erfolgreich");
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(ex.getMessage());
+        }
     }
 }
-
