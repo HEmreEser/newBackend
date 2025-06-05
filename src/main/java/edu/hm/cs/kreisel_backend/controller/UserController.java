@@ -2,13 +2,10 @@ package edu.hm.cs.kreisel_backend.controller;
 
 import edu.hm.cs.kreisel_backend.model.Rental;
 import edu.hm.cs.kreisel_backend.model.User;
+import edu.hm.cs.kreisel_backend.security.SecurityUtils;
 import edu.hm.cs.kreisel_backend.service.UserService;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,87 +16,76 @@ import java.util.List;
 public class UserController {
 
     private final UserService userService;
-
-    // Admin: Alle User abrufen
+    private final SecurityUtils securityUtils;
+//nur der admin soll diese Methode haben um alle user zu suchen
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<User>> getAllUsers() {
-        return ResponseEntity.ok(userService.getAllUsers());
+    public List<User> getAllUsers() {
+        return userService.getAllUsers();
     }
-
-    // Admin: User nach ID abrufen, User: eigenes Profil abrufen
+//wieder nur der admin soll diese Methode haben um nach den Usern zu schauen
     @GetMapping("/{id}")
-    public ResponseEntity<User> getUserById(@PathVariable Long id) {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String email = auth.getName();
-        User currentUser = userService.getUserByEmail(email);
-
-        // Prüfen ob User sein eigenes Profil abruft oder Admin ist
-        if (currentUser.getId().equals(id) || currentUser.getRole() == User.Role.ADMIN) {
-            return ResponseEntity.ok(userService.getUserById(id));
-        } else {
-            return ResponseEntity.status(403).build();
-        }
+    public User getUserById(@PathVariable Long id) {
+        return userService.getUserById(id);
     }
-
-    // Admin: User nach Email suchen
+//nur der admin soll diese Methode haben um nach den Usern zu schauen
     @GetMapping("/email/{email}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<User> getUserByEmail(@PathVariable String email) {
-        return ResponseEntity.ok(userService.getUserByEmail(email));
+    public User getUserByEmail(@PathVariable String email) {
+        return userService.getUserByEmail(email);
     }
-
-    // Admin: Rentals eines Users abrufen, User: eigene Rentals abrufen
+//nur der admin soll diese Methode haben um nach den rentals der User zu schauen, der User kann seine eigenen rentals sehen
     @GetMapping("/{id}/rentals")
-    public ResponseEntity<List<Rental>> getUserRentals(@PathVariable Long id) {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String email = auth.getName();
-        User currentUser = userService.getUserByEmail(email);
-
-        // Prüfen ob User seine eigenen Rentals abruft oder Admin ist
-        if (currentUser.getId().equals(id) || currentUser.getRole() == User.Role.ADMIN) {
-            return ResponseEntity.ok(userService.getRentalsByUserId(id));
-        } else {
-            return ResponseEntity.status(403).build();
-        }
+    public List<Rental> getUserRentals(@PathVariable Long id) {
+        return userService.getRentalsByUserId(id);
     }
-
-    // Admin: Neuen User erstellen
+//nur admin
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<User> createUser(@Valid @RequestBody User user) {
-        return ResponseEntity.ok(userService.createUser(user));
+    public User createUser(@RequestBody User user) {
+        return userService.createUser(user);
     }
-
-    // Admin: User aktualisieren, User: eigenes Profil aktualisieren
+//nur admin
     @PutMapping("/{id}")
-    public ResponseEntity<User> updateUser(@PathVariable Long id, @Valid @RequestBody User user) {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String email = auth.getName();
-        User currentUser = userService.getUserByEmail(email);
-
-        // Prüfen ob User sein eigenes Profil aktualisiert oder Admin ist
-        if (currentUser.getId().equals(id) || currentUser.getRole() == User.Role.ADMIN) {
-            return ResponseEntity.ok(userService.updateUser(id, user));
-        } else {
-            return ResponseEntity.status(403).build();
-        }
+    public User updateUser(@PathVariable Long id, @RequestBody User user) {
+        return userService.updateUser(id, user);
     }
-
-    // Admin: User löschen
+//nur admin
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
+    public void deleteUser(@PathVariable Long id) {
         userService.deleteUser(id);
-        return ResponseEntity.ok().build();
     }
 
-    // Admin: Passwort zurücksetzen auf "12345."
-    @PostMapping("/{id}/reset-password")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<User> resetPassword(@PathVariable Long id) {
-        User user = userService.getUserById(id);
-        user.setPassword("12345.");
-        return ResponseEntity.ok(userService.updateUser(id, user));
+    // User can edit their own account
+    @GetMapping("/me")
+    public ResponseEntity<User> getCurrentUser() {
+        User currentUser = securityUtils.getCurrentUser();
+        if (currentUser == null) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(currentUser);
+    }
+
+    // User can edit their own account
+    @PutMapping("/me")
+    public ResponseEntity<User> updateCurrentUser(@RequestBody User user) {
+        User currentUser = securityUtils.getCurrentUser();
+        if (currentUser == null) {
+            return ResponseEntity.status(401).build();
+        }
+
+        // Ensure user can't change their role
+        user.setRole(currentUser.getRole());
+
+        return ResponseEntity.ok(userService.updateUser(currentUser.getId(), user));
+    }
+
+    // User can delete their own account
+    @DeleteMapping("/me")
+    public ResponseEntity<Void> deleteCurrentUser() {
+        User currentUser = securityUtils.getCurrentUser();
+        if (currentUser == null) {
+            return ResponseEntity.status(401).build();
+        }
+
+        userService.deleteUser(currentUser.getId());
+        return ResponseEntity.ok().build();
     }
 }

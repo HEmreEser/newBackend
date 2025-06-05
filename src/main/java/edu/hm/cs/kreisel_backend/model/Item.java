@@ -3,7 +3,6 @@ package edu.hm.cs.kreisel_backend.model;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import java.util.List;
 
 @Setter
 @Getter
@@ -64,25 +63,5 @@ public class Item {
     public enum Zustand {
         NEU, GEBRAUCHT
     }
-    // Aktualisierung für Item.java - Füge diese Zeilen hinzu:
-
-    @OneToMany(mappedBy = "item", cascade = CascadeType.ALL)
-    private List<Review> reviews;
-
-    // Hilfsmethoden für Rating-Berechnung
-    public double getAverageRating() {
-        if (reviews == null || reviews.isEmpty()) {
-            return 0.0;
-        }
-        return reviews.stream()
-                .mapToInt(Review::getRating)
-                .average()
-                .orElse(0.0);
-    }
-
-    public int getReviewCount() {
-        return reviews != null ? reviews.size() : 0;
-    }
-
 
 }

@@ -41,7 +41,11 @@ public class UserService {
             user.setPassword(passwordEncoder.encode(user.getPassword()));
         }
 
-        // Rolle wird in AuthService gesetzt oder explizit übergeben
+        // Role assignment is now handled in AuthService
+        if (user.getRole() == null) {
+            user.setRole(User.Role.USER); // Default role
+        }
+
         return userRepository.save(user);
     }
 

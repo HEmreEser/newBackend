@@ -1,9 +1,11 @@
 package edu.hm.cs.kreisel_backend.config;
 
 import edu.hm.cs.kreisel_backend.security.JwtAuthenticationFilter;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -16,21 +18,23 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
+import org.springframework.http.HttpMethod;
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
-        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
-    }
-
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
+        return authenticationConfiguration.getAuthenticationManager();
     }
 
     @Bean
@@ -40,17 +44,29 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Public endpoints
-                        .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
-                        // Admin endpoints
-                        .requestMatchers("/api/users/**").hasRole("ADMIN")
-                        .requestMatchers("/api/items/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/rentals/admin/**").hasRole("ADMIN")
-                        // User endpoints
-                        .requestMatchers("/api/items/**").permitAll()
+                        .requestMatchers("/api/auth/**", "/h2-console/**").permitAll()
+                        // Admin-only endpoints
+                        .requestMatchers("/api/users").hasRole("ADMIN")
+                        .requestMatchers("/api/users/{id}").hasRole("ADMIN")
+                        .requestMatchers("/api/users/email/{email}").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/users").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/users/{id}").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/users/{id}").hasRole("ADMIN")
+                        // User can access their own data
+                        .requestMatchers("/api/users/me").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/users/me").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/users/me").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/items").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/items/{id}").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/items/{id}").hasRole("ADMIN")
+                        // User can access their own data
                         .requestMatchers("/api/rentals/user/**").authenticated()
-                        .requestMatchers("/api/reviews/**").authenticated()
-                        // Default
+                        .requestMatchers("/api/rentals/rent").authenticated()
+                        .requestMatchers("/api/rentals/{rentalId}/extend").authenticated()
+                        .requestMatchers("/api/rentals/{rentalId}/return").authenticated()
+                        // Admin can access all rentals
+                        .requestMatchers("/api/rentals").hasRole("ADMIN")
+                        .requestMatchers("/api/rentals/user/{userId}/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .headers(headers -> headers

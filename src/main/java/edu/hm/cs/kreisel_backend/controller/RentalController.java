@@ -2,14 +2,10 @@ package edu.hm.cs.kreisel_backend.controller;
 
 import edu.hm.cs.kreisel_backend.model.Rental;
 import edu.hm.cs.kreisel_backend.model.User;
+import edu.hm.cs.kreisel_backend.security.SecurityUtils;
 import edu.hm.cs.kreisel_backend.service.RentalService;
-import edu.hm.cs.kreisel_backend.service.UserService;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.util.Map;
@@ -22,120 +18,111 @@ import java.util.List;
 public class RentalController {
 
     private final RentalService rentalService;
-    private final UserService userService;
+    private final SecurityUtils securityUtils;
 
-
-    // Admin: Alle Rentals abrufen
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<Rental>> getAllRentals() {
         return ResponseEntity.ok(rentalService.getAllRentals());
     }
 
-    // Admin: Alle überfälligen Rentals abrufen
-    @GetMapping("/overdue")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<Rental>> getOverdueRentals() {
-        return ResponseEntity.ok(rentalService.getOverdueRentals());
+    @GetMapping("/user")
+    public ResponseEntity<List<Rental>> getCurrentUserRentals() {
+        User currentUser = securityUtils.getCurrentUser();
+        if (currentUser == null) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(rentalService.getRentalsByUser(currentUser.getId()));
     }
 
-    // Admin: Rentals eines Users abrufen, User: eigene Rentals abrufen
+    @GetMapping("/user/active")
+    public ResponseEntity<List<Rental>> getCurrentUserActiveRentals() {
+        User currentUser = securityUtils.getCurrentUser();
+        if (currentUser == null) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(rentalService.getActiveRentalsByUser(currentUser.getId()));
+    }
+
+    @GetMapping("/user/history")
+    public ResponseEntity<List<Rental>> getCurrentUserHistoricalRentals() {
+        User currentUser = securityUtils.getCurrentUser();
+        if (currentUser == null) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(rentalService.getHistoricalRentalsByUser(currentUser.getId()));
+    }
+
+    @PostMapping("/rent")
+    public ResponseEntity<Rental> rentItem(@RequestBody Map<String, String> request) {
+        User currentUser = securityUtils.getCurrentUser();
+        if (currentUser == null) {
+            return ResponseEntity.status(401).build();
+        }
+        Long itemId = Long.valueOf(request.get("itemId"));
+        LocalDate endDate = LocalDate.parse(request.get("endDate"));
+        return ResponseEntity.ok(rentalService.rentItem(currentUser.getId(), itemId, endDate));
+    }
+
+    // For backward compatibility
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<Rental>> getRentalsByUser(@PathVariable Long userId) {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String email = auth.getName();
-        User currentUser = userService.getUserByEmail(email);
-
-        // Prüfen ob User seine eigenen Rentals abruft oder Admin ist
-        if (currentUser.getId().equals(userId) || currentUser.getRole() == User.Role.ADMIN) {
-            return ResponseEntity.ok(rentalService.getRentalsByUser(userId));
-        } else {
-            return ResponseEntity.status(403).build();
-        }
+        return ResponseEntity.ok(rentalService.getRentalsByUser(userId));
     }
 
-    // Admin: Aktive Rentals eines Users abrufen, User: eigene aktive Rentals abrufen
     @GetMapping("/user/{userId}/active")
     public ResponseEntity<List<Rental>> getActiveRentalsByUser(@PathVariable Long userId) {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String email = auth.getName();
-        User currentUser = userService.getUserByEmail(email);
-
-        // Prüfen ob User seine eigenen aktiven Rentals abruft oder Admin ist
-        if (currentUser.getId().equals(userId) || currentUser.getRole() == User.Role.ADMIN) {
-            return ResponseEntity.ok(rentalService.getActiveRentalsByUser(userId));
-        } else {
-            return ResponseEntity.status(403).build();
-        }
+        return ResponseEntity.ok(rentalService.getActiveRentalsByUser(userId));
     }
 
-    // Admin: Historische Rentals eines Users abrufen, User: eigene historische Rentals abrufen
     @GetMapping("/user/{userId}/history")
     public ResponseEntity<List<Rental>> getHistoricalRentalsByUser(@PathVariable Long userId) {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String email = auth.getName();
-        User currentUser = userService.getUserByEmail(email);
-
-        // Prüfen ob User seine eigenen historischen Rentals abruft oder Admin ist
-        if (currentUser.getId().equals(userId) || currentUser.getRole() == User.Role.ADMIN) {
-            return ResponseEntity.ok(rentalService.getHistoricalRentalsByUser(userId));
-        } else {
-            return ResponseEntity.status(403).build();
-        }
+        return ResponseEntity.ok(rentalService.getHistoricalRentalsByUser(userId));
     }
 
-    // User: Item ausleihen (nur für sich selbst)
     @PostMapping("/user/{userId}/rent")
-    public ResponseEntity<Rental> rentItem(@PathVariable Long userId, @Valid @RequestBody Map<String, String> request) {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String email = auth.getName();
-        User currentUser = userService.getUserByEmail(email);
-
-        // Prüfen ob User für sich selbst ausleiht oder Admin ist
-        if (currentUser.getId().equals(userId) || currentUser.getRole() == User.Role.ADMIN) {
-            Long itemId = Long.valueOf(request.get("itemId"));
-            LocalDate endDate = LocalDate.parse(request.get("endDate"));
-            return ResponseEntity.ok(rentalService.rentItem(userId, itemId, endDate));
-        } else {
-            return ResponseEntity.status(403).build();
-        }
+    public ResponseEntity<Rental> rentItem(@PathVariable Long userId, @RequestBody Map<String, String> request) {
+        Long itemId = Long.valueOf(request.get("itemId"));
+        LocalDate endDate = LocalDate.parse(request.get("endDate"));
+        return ResponseEntity.ok(rentalService.rentItem(userId, itemId, endDate));
     }
 
-    // User: Ausleihe verlängern (nur eigene), Admin: jede Ausleihe verlängern
     @PostMapping("/{rentalId}/extend")
     public ResponseEntity<Rental> extendRental(@PathVariable Long rentalId) {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String email = auth.getName();
-        User currentUser = userService.getUserByEmail(email);
+        User currentUser = securityUtils.getCurrentUser();
+        if (currentUser == null) {
+            return ResponseEntity.status(401).build();
+        }
 
-        // Rental abrufen
-        Rental rental = rentalService.getActiveRentalForItem(rentalId)
-                .orElseThrow(() -> new RuntimeException("Rental nicht gefunden"));
+        // Check if the rental belongs to the current user or if the user is an admin
+        Rental rental = rentalService.getRentalById(rentalId);
+        if (rental == null) {
+            return ResponseEntity.notFound().build();
+        }
 
-        // Prüfen ob User seine eigene Ausleihe verlängert oder Admin ist
-        if (rental.getUser().getId().equals(currentUser.getId()) || currentUser.getRole() == User.Role.ADMIN) {
-            return ResponseEntity.ok(rentalService.extendRental(rentalId));
-        } else {
+        if (!currentUser.getRole().equals(User.Role.ADMIN) && !rental.getUser().getId().equals(currentUser.getId())) {
             return ResponseEntity.status(403).build();
         }
+
+        return ResponseEntity.ok(rentalService.extendRental(rentalId));
     }
 
-    // User: Item zurückgeben (nur eigene), Admin: jedes Item zurückgeben
     @PostMapping("/{rentalId}/return")
     public ResponseEntity<Rental> returnRental(@PathVariable Long rentalId) {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String email = auth.getName();
-        User currentUser = userService.getUserByEmail(email);
+        User currentUser = securityUtils.getCurrentUser();
+        if (currentUser == null) {
+            return ResponseEntity.status(401).build();
+        }
 
-        // Rental abrufen
-        Rental rental = rentalService.getActiveRentalForItem(rentalId)
-                .orElseThrow(() -> new RuntimeException("Rental nicht gefunden"));
+        // Check if the rental belongs to the current user or if the user is an admin
+        Rental rental = rentalService.getRentalById(rentalId);
+        if (rental == null) {
+            return ResponseEntity.notFound().build();
+        }
 
-        // Prüfen ob User seine eigene Ausleihe zurückgibt oder Admin ist
-        if (rental.getUser().getId().equals(currentUser.getId()) || currentUser.getRole() == User.Role.ADMIN) {
-            return ResponseEntity.ok(rentalService.returnRental(rentalId));
-        } else {
+        if (!currentUser.getRole().equals(User.Role.ADMIN) && !rental.getUser().getId().equals(currentUser.getId())) {
             return ResponseEntity.status(403).build();
         }
+
+        return ResponseEntity.ok(rentalService.returnRental(rentalId));
     }
 }

@@ -45,6 +45,11 @@ public class RentalService {
         return rentalRepository.findByItemIdAndReturnDateIsNull(itemId);
     }
 
+    public Rental getRentalById(Long rentalId) {
+        return rentalRepository.findById(rentalId)
+                .orElse(null);
+    }
+
     public Rental rentItem(Long userId, Long itemId, LocalDate endDate) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));

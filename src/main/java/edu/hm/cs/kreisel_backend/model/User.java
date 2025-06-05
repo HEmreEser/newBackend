@@ -39,9 +39,4 @@ public class User {
         USER,
         ADMIN
     }
-    // Aktualisierung für User.java - Füge diese Zeilen hinzu:
-
-    @OneToMany(mappedBy = "user")
-    @JsonManagedReference("user-reviews")
-    private List<Review> reviews;
 }

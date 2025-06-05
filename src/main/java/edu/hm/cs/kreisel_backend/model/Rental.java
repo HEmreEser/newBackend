@@ -42,13 +42,4 @@ public class Rental {
                 }
                 return "ACTIVE";
         }
-        // Aktualisierung für Rental.java - Füge diese Zeile hinzu:
-
-        @OneToOne(mappedBy = "rental", cascade = CascadeType.ALL)
-        private Review review;
-
-        // Hilfsmethode
-        public boolean hasReview() {
-                return review != null;
-        }
 }

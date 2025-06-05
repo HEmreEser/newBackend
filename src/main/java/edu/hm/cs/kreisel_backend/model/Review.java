@@ -27,10 +27,12 @@ public class Review {
 
     @ManyToOne
     @JoinColumn(name = "item_id", nullable = false)
+    @JsonBackReference("item-reviews")
     private Item item;
 
     @OneToOne
     @JoinColumn(name = "rental_id", nullable = false, unique = true)
+    @JsonBackReference("rental-review")
     private Rental rental;
 
     @NotNull

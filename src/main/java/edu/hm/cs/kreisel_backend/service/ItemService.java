@@ -3,11 +3,9 @@ package edu.hm.cs.kreisel_backend.service;
 import edu.hm.cs.kreisel_backend.model.Item;
 import edu.hm.cs.kreisel_backend.model.Item.*;
 import edu.hm.cs.kreisel_backend.repository.ItemRepository;
-import edu.hm.cs.kreisel_backend.repository.ReviewRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -15,13 +13,11 @@ import java.util.List;
 public class ItemService {
 
     private final ItemRepository itemRepository;
-    private final ReviewRepository reviewRepository;
 
     // Haupt-Filtermethode
     public List<Item> filterItems(Location location, Boolean available, String searchQuery,
-                                  Gender gender, Category category, Subcategory subcategory, String size,
-                                  Boolean sortByRating) {
-        List<Item> filteredItems = itemRepository.findAll().stream()
+                                  Gender gender, Category category, Subcategory subcategory, String size) {
+        return itemRepository.findAll().stream()
                 .filter(item -> item.getLocation() == location)
                 .filter(item -> available == null || item.isAvailable() == available)
                 .filter(item -> matchesSearch(item, searchQuery))
@@ -30,18 +26,6 @@ public class ItemService {
                 .filter(item -> subcategory == null || item.getSubcategory() == subcategory)
                 .filter(item -> size == null || (item.getSize() != null && item.getSize().equalsIgnoreCase(size)))
                 .toList();
-
-        // Sortieren nach Bewertung, wenn gewünscht
-        if (Boolean.TRUE.equals(sortByRating)) {
-            return filteredItems.stream()
-                    .sorted(Comparator.comparing(item -> {
-                        Double avgRating = reviewRepository.findAverageRatingByItemId(item.getId());
-                        return avgRating != null ? -avgRating : 0.0; // Absteigend sortieren (höchste Bewertung zuerst)
-                    }))
-                    .toList();
-        }
-
-        return filteredItems;
     }
 
     private boolean matchesSearch(Item item, String searchQuery) {
